@@ -1,2 +1,2 @@
 # Mongo Easy
-Is a python ODM inspired on MongoKit
+Is a python ODM inspired on MongoAlchemy and MongoKit
