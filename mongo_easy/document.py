@@ -1,14 +1,12 @@
-from mongo_easy.field import Field
-from pymongo import MongoClient
+from mongo_easy import Connection
+from mongo_easy import Field
 from bson import ObjectId
+from json import loads
 
-client = MongoClient()
 
-
+@Connection.register('teste')
 class Document(dict):
 
-    __collection__ = ''
-    __database__ = 'teste'
     __structure__ = {
         's': Field(
             _type=str,
@@ -19,34 +17,32 @@ class Document(dict):
     }
 
     def __init__(self, **kwargs):
-        cls = self.__class__
-        if not cls.__collection__:
-            cls.__collection__ = cls.__name__
-        structure = cls.__structure__
+        structure = self.__class__.__structure__
         self.__json = {key: None for key in structure}
         for key in structure:
             self[key] = kwargs.get(key, None)
 
     def __getitem__(self, key):
-        return self.__json.get(key, None)
+        if key not in self.__class__.__structure__ and key != '_id':
+            raise KeyError(key)
+        return self.__json[key]
 
     def __setitem__(self, key, value):
         # validate key
         if key == '_id' and value is None:
             return KeyError(key)
         cls = self.__class__
-        structure = {key: _value for key, _value in cls.__structure__}
+        structure = {key: _value for key, _value in cls.__structure__.items()}
         if not structure.get('_id', None):
             structure['_id'] = Field(
                 _type=ObjectId,
-                validate=ObjectId.is_valid(value)
+                validate=ObjectId.is_valid
             )
-        if not key in structure and '_id' != key:
+        if not key in structure:
             raise KeyError(key)
         # validate value
         field = structure[key]
         is_none = value is None
-        print(field['required'])
         if field['required'] and is_none:
             raise Exception("Error value None")
         if not is_none and not isinstance(value, field['type']):
@@ -66,3 +62,16 @@ class Document(dict):
 
     def __repr__(self):
         return str(self.__json)
+
+    def save(self):
+        cls = self.__class__
+        collection = Connection.get_database(cls.__database__)[cls.__name__]
+        result = collection.update_one(
+            {
+                '_id': self.get('_id', None)
+            }, {
+                '$set': loads(str(self).repalce('\'', '"'))
+            }
+        )
+        if result.modified_count == 0:
+            collection.insert(self)
