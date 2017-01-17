@@ -44,13 +44,13 @@ class Document(dict):
         field = structure[key]
         is_none = value is None
         if field['required'] and is_none:
-            raise Exception("Error value None")
+            raise Exception("Error Value not accepted None")
         if not is_none and not isinstance(value, field['type']):
-            raise Exception("Error type invalid")
+            raise Exception("Error: Value type is invalid - " + type(value))
         if not callable(field['validate']):
-            raise Exception("Error is not a function")
+            raise Exception("Error: Validate property in field isn't a function")
         if not field['validate'](value):
-            raise Exception("Error not valid")
+            raise Exception("Error: Value is invalid")
         self.__json[key] = value
 
     def __delitem__(self, key):
