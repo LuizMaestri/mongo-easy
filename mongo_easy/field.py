@@ -1,3 +1,6 @@
+from hashlib import sha512
+
+
 class Field(dict):
     """docstring for Field."""
     def __init__(
@@ -17,3 +20,9 @@ class Field(dict):
         if key not in ['type', 'index', 'validate', 'required']:
             raise KeyError(key)
         super().__setitem__(key, value)
+
+
+class Password(str):
+
+    def __repr__(self):
+        return sha512(self.encode('utf-8')).hexdigest()
