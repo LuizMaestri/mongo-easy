@@ -48,30 +48,43 @@ class Document(dict):
         if not is_none and not isinstance(value, field['type']):
             raise Exception("Error: Value type is invalid - " + type(value))
         if not callable(field['validate']):
-            raise Exception("Error: Validate property in field isn't a function")
+            raise Exception(
+                "Error: Validate property in field isn't a function")
         if not field['validate'](value):
             raise Exception("Error: Value is invalid")
         self.__json[key] = value
 
     def __delitem__(self, key):
         structure = self.__class__.__structure__
-        if key not in structure:
+        if key not in structure and key != '_id':
             raise KeyError(key)
-        field = structure[key]
-        self.__json[key] = field['type']() if field['required'] else None
+        if key == '_id':
+            del self.__json[key]
+        else:
+            field = structure[key]
+            self.__json[key] = field['type']() if field['required'] else None
 
     def __repr__(self):
         return str(self.__json)
 
+    def __contains__(self, key):
+        return key in self.__json
+
     def save(self):
         cls = self.__class__
         collection = Connection.get_database(cls.__database__)[cls.__name__]
+        _id = None
+        if '_id' in self:
+            _id = self['_id']
+            del self['_id']
+        json = loads(str(self).replace('\'', '"'))
         result = collection.update_one(
             {
-                '_id': self.get('_id', None)
+                '_id': _id
             }, {
-                '$set': loads(str(self).repalce('\'', '"'))
+                '$set': json
             }
         )
         if result.modified_count == 0:
-            collection.insert(self)
+            _id = collection.insert(json)
+        self['_id'] = _id
